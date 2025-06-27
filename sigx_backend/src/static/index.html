@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGx - Automatização de Jornadas</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-aprovado {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-pendente {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-automatico {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-truck text-2xl"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">SIGx Automatização</h1>
+                        <p class="text-blue-100">Sistema de Gestão de Jornadas</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm text-blue-100">Status do Sistema</p>
+                        <p class="font-semibold" id="system-status">
+                            <i class="fas fa-circle text-green-400 mr-1"></i>Online
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-6">
+            <div class="flex space-x-8">
+                <button class="nav-tab active py-4 px-2 border-b-2 border-blue-500 text-blue-600 font-medium" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                </button>
+                <button class="nav-tab py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="eventos">
+                    <i class="fas fa-calendar-alt mr-2"></i>Eventos
+                </button>
+                <button class="nav-tab py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="posicoes">
+                    <i class="fas fa-map-marker-alt mr-2"></i>Posições
+                </button>
+                <button class="nav-tab py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="veiculos">
+                    <i class="fas fa-truck mr-2"></i>Veículos
+                </button>
+                <button class="nav-tab py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="importar">
+                    <i class="fas fa-upload mr-2"></i>Importar
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                            <i class="fas fa-calendar-check text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Eventos Hoje</p>
+                            <p class="text-2xl font-bold text-gray-900" id="eventos-hoje">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 text-green-600">
+                            <i class="fas fa-check-circle text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Aprovados</p>
+                            <p class="text-2xl font-bold text-gray-900" id="eventos-aprovados">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                            <i class="fas fa-clock text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Pendentes</p>
+                            <p class="text-2xl font-bold text-gray-900" id="eventos-pendentes">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                            <i class="fas fa-robot text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Automáticos</p>
+                            <p class="text-2xl font-bold text-gray-900" id="eventos-automaticos">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Eventos por Tipo</h3>
+                    <canvas id="chart-tipos" width="400" height="200"></canvas>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Eventos por Dia</h3>
+                    <canvas id="chart-timeline" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Events -->
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Eventos Recentes</h3>
+                </div>
+                <div class="p-6">
+                    <div id="eventos-recentes" class="space-y-4">
+                        <!-- Eventos serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eventos Tab -->
+        <div id="eventos-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-900">Gestão de Eventos</h3>
+                    <div class="flex space-x-2">
+                        <select id="filtro-veiculo" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <option value="">Todos os Veículos</option>
+                        </select>
+                        <select id="filtro-status" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <option value="">Todos os Status</option>
+                            <option value="true">Aprovados</option>
+                            <option value="false">Pendentes</option>
+                        </select>
+                        <button id="btn-atualizar-eventos" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                            <i class="fas fa-sync-alt mr-1"></i>Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="lista-eventos" class="space-y-4">
+                        <!-- Eventos serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Posições Tab -->
+        <div id="posicoes-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-900">Posições do Rastreador</h3>
+                    <div class="flex space-x-2">
+                        <select id="posicoes-veiculo" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <option value="">Selecione um Veículo</option>
+                        </select>
+                        <button id="btn-classificar-posicoes" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">
+                            <i class="fas fa-magic mr-1"></i>Classificar Automaticamente
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="estatisticas-posicoes" class="mb-6"></div>
+                    <div id="lista-posicoes" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- Posições serão carregadas aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Veículos Tab -->
+        <div id="veiculos-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Veículos Cadastrados</h3>
+                </div>
+                <div class="p-6">
+                    <div id="lista-veiculos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Veículos serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Importar Tab -->
+        <div id="importar-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Importar Posições</h3>
+                </div>
+                <div class="p-6">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Arquivo JSON</label>
+                        <input type="file" id="arquivo-posicoes" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="classificar-automatico" checked class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Classificar eventos automaticamente após importação</span>
+                        </label>
+                    </div>
+                    
+                    <button id="btn-importar" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50" disabled>
+                        <i class="fas fa-upload mr-2"></i>Importar Posições
+                    </button>
+                    
+                    <div id="resultado-importacao" class="mt-6 hidden">
+                        <!-- Resultado da importação será mostrado aqui -->
+                    </div>
+                    
+                    <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Formato do Arquivo JSON:</h4>
+                        <pre class="text-xs text-gray-600 overflow-x-auto"><code id="exemplo-json"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal para Edição de Evento -->
+    <div id="modal-evento" class="modal">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Editar Evento</h3>
+                <button id="btn-fechar-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="form-evento">
+                    <input type="hidden" id="evento-id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Evento</label>
+                            <select id="evento-tipo" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                <!-- Tipos serão carregados aqui -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select id="evento-status" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                <option value="false">Pendente</option>
+                                <option value="true">Aprovado</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora Início</label>
+                            <input type="datetime-local" id="evento-inicio" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora Fim</label>
+                            <input type="datetime-local" id="evento-fim" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                        <textarea id="evento-observacoes" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="btn-cancelar" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="text-gray-700">Processando...</span>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+
